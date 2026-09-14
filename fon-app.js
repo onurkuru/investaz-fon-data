@@ -206,6 +206,7 @@
     var code = f.code, name = f.name || "", tl = TYPE_LABEL[f.type] || "Fon";
     var typeHub = f.type === "EMK" ? HUB + "/bes-fonlari" : f.type === "BYF" ? HUB + "/borsa-yatirim-fonlari" : HUB;
     setText("iaf-det-code", code);
+    setText("iaf-bc-code", code);
     setText("iaf-det-name", name);
     setText("iaf-det-cat", f.category || tl);
     setText("iaf-det-type", tl);
