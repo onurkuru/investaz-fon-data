@@ -30,7 +30,11 @@
   var TR_MAP = { "ç": "c", "ğ": "g", "ı": "i", "ö": "o", "ş": "s", "ü": "u", "â": "a", "î": "i", "û": "u" };
   function slugify(name) { return String(name || "").toLocaleLowerCase("tr-TR").replace(/[çğıöşüâîû]/g, function (c) { return TR_MAP[c] || c; }).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80); }
   /* /fon-fiyatlari/fon/afa-ak-portfoy-amerika-yabanci-hisse-senedi-fonu (fvt/fintables gibi: kod + ad slug'ı URL'de) */
-  function fundUrl(code, name) { return HUB + "/fon/" + String(code).toLowerCase() + (name ? "-" + slugify(name) : ""); }
+  var LINKMODE = root.getAttribute("data-linkmode") || "path"; // "query": CMS'te joker yol yoksa /fon?kod=AAL
+  function fundUrl(code, name) {
+    if (LINKMODE === "query") return HUB + "/fon?kod=" + String(code).toUpperCase();
+    return HUB + "/fon/" + String(code).toLowerCase() + (name ? "-" + slugify(name) : "");
+  }
   var SRC = root.getAttribute("data-src") || ""; // jsDelivr tabanı: veri script etiketiyle yüklenir (CSP script-src izinli, connect-src gerekmez)
   window.IAF_DATA = window.IAF_DATA || {};
   function loadScript(url) {
@@ -177,7 +181,8 @@
   var RANGES = { "1A": 30, "3A": 91, "6A": 182, "1Y": 365, "3Y": 1095, "Tümü": 100000 };
 
   function initDetail() {
-    var code = (root.getAttribute("data-code") || (location.pathname.match(/\/fon\/([A-Za-z0-9]{2,6})(?:-|\/|$)/) || [])[1] || "").toUpperCase();
+    var qs0 = new URLSearchParams(location.search);
+    var code = (root.getAttribute("data-code") || (location.pathname.match(/\/fon\/([A-Za-z0-9]{2,6})(?:-|\/|$)/) || [])[1] || qs0.get("kod") || qs0.get("fon") || "").toUpperCase();
     if (code) {
       // Veri gelmeden önce canonical/başlık (canlı-borsa "instant SEO" deseni): CMS'in ortak canonical'ını fon bazlı hale getirir
       document.querySelectorAll('link[rel="canonical"]').forEach(function (l, i) { if (i) l.remove(); });
