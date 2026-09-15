@@ -222,15 +222,20 @@
     setText("iaf-ring-score", r ? String(r) : "-"); setText("iaf-ring-text", r ? "RİSK " + riskText(r) : "RİSK");
     if (ring) ring.setAttribute("stroke", r >= 6 ? "#ef4444" : r >= 4 ? "#f59e0b" : "#10b981");
     // fiyat
-    setText("iaf-det-price", f.price ? fmtPrice(f.price) + " TL" : "-");
+    setText("iaf-det-price", f.price ? fmtPrice(f.price) + " TL" : "Fiyat açıklanmadı");
+    if (!f.price) { // TEFAS'ta henüz birim pay fiyatı yok (yeni kurulmuş / işleme açılmamış fon): grafik ve getiri panelleri anlamsız, gizle
+      var cp = $("iaf-chart-panel"); if (cp) cp.style.display = "none";
+      var rp = $("iaf-returns-panel"); if (rp) rp.style.display = "none";
+      var nv = $("iaf-section-nav"); if (nv) nv.querySelectorAll('a[href="#iaf-chart-panel"],a[href="#iaf-returns-panel"]').forEach(function (a) { a.style.display = "none"; });
+    }
     var ch = $("iaf-det-change"); if (ch) { ch.textContent = fmtPct(f.dailyPct) + (f.dailyPct != null ? " (günlük)" : ""); ch.className = "text-base md:text-lg font-bold tabular-nums " + pctClass(f.dailyPct); }
-    setText("iaf-det-date", f.date ? "Fiyat tarihi: " + fmtDate(f.date) : "");
+    setText("iaf-det-date", !f.price ? "TEFAS'ta bu fon için henüz fiyat yayımlanmadı; yayımlandığında sayfa otomatik güncellenir." : f.date ? "Fiyat tarihi: " + fmtDate(f.date) : "");
     setText("iaf-tefas-label", code);
     // metrik kartlar
     var m = { "iaf-m-daily": [fmtPct(f.dailyPct), pctClass(f.dailyPct)], "iaf-m-1m": [fmtPct(f.r1m), pctClass(f.r1m)], "iaf-m-ytd": [fmtPct(f.ytd), pctClass(f.ytd)], "iaf-m-1y": [fmtPct(f.r1y), pctClass(f.r1y)], "iaf-m-size": [f.size ? fmtCompact(f.size) + " ₺" : "-", ""], "iaf-m-investors": [f.investors ? nf(0, 0).format(f.investors) : "-", ""] };
     Object.keys(m).forEach(function (id) { var e = $(id); if (!e) return; e.textContent = m[id][0]; e.className = "text-xl font-black " + (m[id][1] || "text-gray-900 dark:text-gray-100"); });
     // grafik
-    chart.prices = f.prices || [];
+    chart.prices = (f.prices || []).filter(function (p) { return p.c > 0; });
     renderRangeButtons(); drawChart();
     // getiri tablosu
     var rets = [["1 Hafta", ret(chart.prices, 7)], ["1 Ay", f.r1m != null ? f.r1m : ret(chart.prices, 30)], ["3 Ay", f.r3m != null ? f.r3m : ret(chart.prices, 91)], ["6 Ay", f.r6m != null ? f.r6m : ret(chart.prices, 182)], ["Yılbaşından", f.ytd], ["1 Yıl", f.r1y != null ? f.r1y : ret(chart.prices, 365)], ["3 Yıl", f.r3y], ["5 Yıl", f.r5y]];
@@ -280,6 +285,7 @@
   function summaryText(f) {
     var code = f.code, r = f.risk || 0, parts = [];
     parts.push("<strong>" + esc(code) + "</strong> (" + esc(f.name) + "), " + (f.company ? "<strong>" + esc(f.company) + "</strong> tarafından yönetilen" : "TEFAS'ta işlem gören") + " bir <strong>" + esc(f.category || TYPE_LABEL[f.type] || "fon") + "</strong>dur." + (f.size ? " Fon büyüklüğü <strong>" + fmtCompact(f.size) + " ₺</strong>" + (f.investors ? ", yatırımcı sayısı <strong>" + nf(0, 0).format(f.investors) + "</strong>" : "") + "." : ""));
+    if (!f.price) parts.push("TEFAS'ta bu fon için <strong>henüz birim pay fiyatı yayımlanmadı</strong>. Fon yeni kurulmuş veya işleme açılmamış olabilir; ilk fiyat açıklandığında fiyat, getiri ve grafik bu sayfada otomatik görünür.");
     if (f.price) parts.push("Son açıklanan birim pay fiyatı <strong>" + fmtPrice(f.price) + " TL</strong>" + (f.dailyPct != null ? " (günlük " + fmtPct(f.dailyPct) + ")" : "") + (f.date ? ", " + fmtDate(f.date) + " tarihli." : "."));
     var ytd = f.ytd, y1 = f.r1y;
     if (ytd != null || y1 != null) parts.push("Getiri: yılbaşından bugüne <strong>" + fmtPct(ytd) + "</strong>" + (y1 != null ? ", son 1 yılda <strong>" + fmtPct(y1) + "</strong>" : "") + (f.rank && f.rankOf ? "; kategorisindeki " + f.rankOf + " fon arasında 1 yıllık getiride <strong>" + f.rank + ". sırada</strong>." : "."));
