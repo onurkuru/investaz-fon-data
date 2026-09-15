@@ -185,6 +185,7 @@
   function initDetail() {
     var qs0 = new URLSearchParams(location.search);
     var code = (root.getAttribute("data-code") || (location.pathname.match(/\/fon\/([A-Za-z0-9]{2,6})(?:-|\/|$)/) || [])[1] || qs0.get("kod") || qs0.get("fon") || "").toUpperCase();
+    if (!/^[A-Z0-9]{2,6}$/.test(code)) code = ""; // TEFAS kodu 2-6 alfasayısal; başka her şey (ör. enjeksiyon denemesi) "kod yok" sayılır
     if (code) {
       // Veri gelmeden önce canonical/başlık (canlı-borsa "instant SEO" deseni): CMS'in ortak canonical'ını fon bazlı hale getirir
       document.querySelectorAll('link[rel="canonical"]').forEach(function (l, i) { if (i) l.remove(); });
@@ -193,7 +194,9 @@
       setMeta("robots", "index, follow, max-snippet:-1, max-image-preview:large");
       setMeta("og:type", "article", "property"); setMeta("og:site_name", "InvestAZ", "property"); setMeta("og:locale", "tr_TR", "property");
     }
-    if (!code) { detailView.innerHTML = '<div class="p-8 text-center text-gray-500">Fon kodu bulunamadı. <a class="text-iaz-cyan" href="' + HUB + '">Fon listesine dön</a></div>'; return; }
+    if (!code) { // iskelete dokunma (CMS editörü kaydederse şablon bozulmasın); yalnız başlık alanına mesaj + noindex
+      setText("iaf-det-name", "Fon kodu bulunamadı."); setHTML("iaf-summary-text", '<p>Adreste fon kodu yok. <a class="text-iaz-cyan font-semibold" href="' + HUB + '">Fon listesinden</a> bir fon seçin.</p>'); setMeta("robots", "noindex, follow"); return;
+    }
     setText("iaf-det-code", code);
     var nav = $("iaf-section-nav"); if (nav) { nav.style.display = ""; nav.querySelectorAll("a").forEach(function (a) { a.addEventListener("click", function (e) { e.preventDefault(); var t = document.querySelector(a.getAttribute("href")); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }); }); }
     var back = $("iaf-back"); if (back) back.addEventListener("click", function () { if (document.referrer && document.referrer.indexOf(HUB) >= 0) history.back(); else location.href = HUB; });
@@ -327,5 +330,9 @@
   }
 
   window.IAF = { sort: sortBy, state: state };
+  // Editör koruması: CMS editörü/önizlemesi yapıştırılan HTML'i çalıştırırsa widget DOM'a dokunmasın;
+  // aksi halde editör, widget'ın değiştirdiği DOM'u kaydeder ve statik iskelet (SEO fallback) bozulur.
+  var inEditor = document.designMode === "on" || !!root.closest("[contenteditable]") || location.pathname.indexOf(HUB) !== 0;
+  if (inEditor) { try { console.warn("[iaf] editör/önizleme bağlamı, widget çalıştırılmadı:", location.pathname); } catch (e) {} return; }
   if (detailView) initDetail(); else if (listView) initHub();
 })();
