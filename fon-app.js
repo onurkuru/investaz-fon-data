@@ -25,6 +25,8 @@
   function pctClass(v) { return v > 0 ? "text-emerald-600 dark:text-emerald-400" : v < 0 ? "text-red-500 dark:text-red-400" : "text-gray-500 dark:text-gray-400"; }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function trUpper(s) { return String(s || "").toLocaleUpperCase("tr-TR"); }
+  var FOLD = { "ç": "c", "ğ": "g", "ı": "i", "i̇": "i", "ö": "o", "ş": "s", "ü": "u", "â": "a", "î": "i", "û": "u" };
+  function fold(s) { return String(s || "").toLocaleLowerCase("tr-TR").replace(/[çğıi̇öşüâîû]/g, function (c) { return FOLD[c] || c; }).replace(/İ/g, "i"); }
   function riskClass(r) { return !r ? "bg-gray-100 text-gray-500 dark:bg-iaz-dark dark:text-gray-400" : r >= 6 ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20" : r >= 4 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"; }
   function riskText(r) { return !r ? "-" : r <= 2 ? "Düşük" : r <= 4 ? "Orta" : r <= 5 ? "Orta-Yüksek" : "Yüksek"; }
   var TR_MAP = { "ç": "c", "ğ": "g", "ı": "i", "ö": "o", "ş": "s", "ü": "u", "â": "a", "î": "i", "û": "u" };
@@ -109,8 +111,13 @@
     setCanonical(SITE + (state.type === "EMK" ? HUB + "/bes-fonlari" : state.type === "BYF" ? HUB + "/borsa-yatirim-fonlari" : HUB));
     setMeta("robots", "index, follow, max-snippet:-1, max-image-preview:large");
     setMeta("og:type", "website", "property"); setMeta("og:site_name", "InvestAZ", "property"); setMeta("og:locale", "tr_TR", "property");
+    // canlı-borsa hub deseni: WebSite + SearchAction (fon arama kutusu ?q= ile çalışır), Twitter kartı, hreflang
+    var hubUrl = SITE + (state.type === "EMK" ? HUB + "/bes-fonlari" : state.type === "BYF" ? HUB + "/borsa-yatirim-fonlari" : HUB);
+    setMeta("twitter:card", "summary"); setMeta("twitter:title", document.title); setMeta("og:url", hubUrl, "property");
+    var hl = document.querySelector('link[rel="alternate"][hreflang="tr-TR"]'); if (!hl) { hl = document.createElement("link"); hl.rel = "alternate"; hl.setAttribute("hreflang", "tr-TR"); document.head.appendChild(hl); } hl.href = hubUrl;
+    setJsonLd("iaf-ld-website", { "@context": "https://schema.org", "@type": "WebSite", name: "InvestAZ Fon Fiyatları", url: SITE + HUB, inLanguage: "tr-TR", publisher: { "@type": "Organization", name: "InvestAZ Yatırım Menkul Değerler A.Ş.", url: SITE }, potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: SITE + HUB + "?q={search_term_string}" }, "query-input": "required name=search_term_string" } });
     getJSON("/api/funds").then(function (j) {
-      state.funds = j.funds || [];
+      state.funds = (j.funds || []).filter(function (f) { return f.price > 0; }); // TEFAS henüz fiyat açıklamamış (yeni/işleme kapalı) fonlar listede gösterilmez; fiyat gelince otomatik görünür
       setText("iaf-last-update", j.generatedAt ? fmtDate(j.generatedAt, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-");
       renderCats();
       renderTypeTabs();
@@ -147,8 +154,9 @@
   function sortBy(k) { if (state.sort === k) state.desc = !state.desc; else { state.sort = k; state.desc = k !== "code" && k !== "category"; } renderTable(); }
   function renderTable() {
     var body = $("iaf-table-body"); if (!body) return;
-    var q = trUpper(state.q.trim());
-    var rows = currentFunds().filter(function (f) { return (!state.cat || f.category === state.cat) && (!q || f.code.indexOf(q) >= 0 || trUpper(f.name).indexOf(q) >= 0); });
+    // Türkçe karakter duyarsız arama: "altin" = "ALTIN", "doviz" = "DÖVİZ" (Google arama kutusu ve klavye farkları için)
+    var q = fold(state.q.trim());
+    var rows = currentFunds().filter(function (f) { if (state.cat && f.category !== state.cat) return false; if (!q) return true; f._s = f._s || fold(f.code + " " + f.name); return f._s.indexOf(q) >= 0; });
     var k = SORT_KEYS[state.sort] || "size";
     rows.sort(function (a, b) {
       var va = a[k], vb = b[k];
@@ -197,7 +205,7 @@
     if (!code) { // iskelete dokunma (CMS editörü kaydederse şablon bozulmasın); yalnız başlık alanına mesaj + noindex
       setText("iaf-det-name", "Fon kodu bulunamadı."); setHTML("iaf-summary-text", '<p>Adreste fon kodu yok. <a class="text-iaz-cyan font-semibold" href="' + HUB + '">Fon listesinden</a> bir fon seçin.</p>'); setMeta("robots", "noindex, follow"); return;
     }
-    setText("iaf-det-code", code);
+    setText("iaf-det-code", code); setText("iaf-bc-code", code); // erken: h1 + breadcrumb veri gelmeden dolsun (canlı-borsa fixSeoEarly deseni)
     var nav = $("iaf-section-nav"); if (nav) { nav.style.display = ""; nav.querySelectorAll("a").forEach(function (a) { a.addEventListener("click", function (e) { e.preventDefault(); var t = document.querySelector(a.getAttribute("href")); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }); }); }
     var back = $("iaf-back"); if (back) back.addEventListener("click", function () { if (document.referrer && document.referrer.indexOf(HUB) >= 0) history.back(); else location.href = HUB; });
     getJSON("/fund/" + code).then(renderDetail).catch(function (e) {
@@ -272,7 +280,30 @@
     setJsonLd("iaf-ld-breadcrumb", { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Ana Sayfa", item: SITE + "/" }, { "@type": "ListItem", position: 2, name: "Fon Fiyatları", item: SITE + HUB }, { "@type": "ListItem", position: 3, name: code + " " + name, item: canon }] });
     setJsonLd("iaf-ld-product", { "@context": "https://schema.org", "@type": "InvestmentFund", name: name, alternateName: code, identifier: f.isin || code, category: f.category || tl, url: canon, provider: { "@type": "Organization", name: f.company || "" }, offers: { "@type": "Offer", price: f.price || undefined, priceCurrency: "TRY", availability: "https://schema.org/InStock", seller: { "@type": "Organization", name: "InvestAZ Yatırım Menkul Değerler A.Ş.", url: SITE } }, annualPercentageRate: f.r1y != null ? { "@type": "QuantitativeValue", value: Math.round(f.r1y * 100) / 100, unitText: "PERCENT" } : undefined });
     setJsonLd("iaf-ld-faq", { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faq.map(function (x) { return { "@type": "Question", name: x.q, acceptedAnswer: { "@type": "Answer", text: x.a } }; }) });
+    enrichSeo(f, code, name, title, desc, canon);
     observeSections();
+  }
+
+  /* canlı-borsa (investaz-edge) SEO deseni: JS render eden Googlebot için tam meta seti + şema grafiği.
+     keywords/robots/OG/Twitter/hreflang + WebPage, Article, Product/Offer (fiyat varsa). Derecelendirme/Review YOK (SPK). */
+  function setLink(rel, attrs) {
+    var sel = 'link[rel="' + rel + '"]' + (attrs.hreflang ? '[hreflang="' + attrs.hreflang + '"]' : "");
+    var l = document.querySelector(sel); if (!l) { l = document.createElement("link"); l.rel = rel; document.head.appendChild(l); }
+    Object.keys(attrs).forEach(function (k) { l.setAttribute(k, attrs[k]); });
+  }
+  function enrichSeo(f, code, name, title, desc, canon) {
+    var cat = f.category || TYPE_LABEL[f.type] || "Fon";
+    setMeta("keywords", [code + " fon", code + " fon fiyatı", code + " getiri", code + " fon yorum", name, cat, "TEFAS fon fiyatları", "yatırım fonu", f.company ? f.company + " fonları" : ""].filter(Boolean).join(", "));
+    setMeta("robots", f.price ? "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" : "noindex, follow");
+    setMeta("og:type", "article", "property"); setMeta("og:site_name", "InvestAZ", "property"); setMeta("og:locale", "tr_TR", "property");
+    setMeta("article:section", cat, "property"); setMeta("article:modified_time", (f.date ? f.date + "T00:00:00+03:00" : new Date().toISOString()), "property");
+    setMeta("twitter:card", "summary"); setMeta("twitter:title", title); setMeta("twitter:description", desc);
+    setLink("alternate", { hreflang: "tr-TR", href: canon });
+    var org = { "@type": "Organization", name: "InvestAZ Yatırım Menkul Değerler A.Ş.", url: SITE };
+    setJsonLd("iaf-ld-webpage", { "@context": "https://schema.org", "@type": "WebPage", "@id": canon + "#webpage", url: canon, name: title, description: desc, inLanguage: "tr-TR", dateModified: f.date || undefined, isPartOf: { "@type": "WebSite", name: "InvestAZ", url: SITE }, about: { "@type": "InvestmentFund", name: name, alternateName: code }, breadcrumb: { "@id": canon + "#breadcrumb" } });
+    setJsonLd("iaf-ld-article", { "@context": "https://schema.org", "@type": "Article", headline: code + " Fon Fiyatı ve Getirisi — " + name, description: desc, url: canon, mainEntityOfPage: { "@id": canon + "#webpage" }, articleSection: cat, inLanguage: "tr-TR", datePublished: f.date || undefined, dateModified: f.date || undefined, author: org, publisher: org });
+    if (f.price) setJsonLd("iaf-ld-offer", { "@context": "https://schema.org", "@type": "Product", name: name, sku: code, category: cat, brand: f.company ? { "@type": "Brand", name: f.company } : undefined, description: desc, url: canon, offers: { "@type": "Offer", url: canon, price: Number(f.price.toFixed(6)), priceCurrency: "TRY", availability: "https://schema.org/InStock", priceValidUntil: f.date || undefined, seller: org } });
+    else { var o = $("iaf-ld-offer"); if (o) o.remove(); }
   }
 
   function ret(prices, days) {
@@ -290,7 +321,11 @@
     var ytd = f.ytd, y1 = f.r1y;
     if (ytd != null || y1 != null) parts.push("Getiri: yılbaşından bugüne <strong>" + fmtPct(ytd) + "</strong>" + (y1 != null ? ", son 1 yılda <strong>" + fmtPct(y1) + "</strong>" : "") + (f.rank && f.rankOf ? "; kategorisindeki " + f.rankOf + " fon arasında 1 yıllık getiride <strong>" + f.rank + ". sırada</strong>." : "."));
     if (r) parts.push("SPK risk değeri <strong>" + r + "/7</strong> (" + riskText(r).toLocaleLowerCase("tr-TR") + " risk); " + (r <= 2 ? "fiyat dalgalanması düşük, kısa vadeli birikim için tercih edilen sınıfta." : r <= 4 ? "orta düzeyde dalgalanma; dengeli portföylerde yer alan sınıfta." : "yüksek dalgalanma; uzun vadeli ve riske toleranslı yatırımcılara uygun sınıfta."));
-    var top = (f.allocation || [])[0]; if (top) parts.push("Portföyün en büyük kalemi <strong>" + esc(top.label) + " (%" + fmtNum(top.pct, 1) + ")</strong>.");
+    var al = f.allocation || [];
+    if (al.length) parts.push("Varlık dağılımında en büyük kalem <strong>" + esc(al[0].label) + " (%" + fmtNum(al[0].pct, 1) + ")</strong>" + (al[1] ? ", ardından " + esc(al[1].label) + " (%" + fmtNum(al[1].pct, 1) + ")" : "") + (al[2] ? " ve " + esc(al[2].label) + " (%" + fmtNum(al[2].pct, 1) + ")" : "") + " geliyor; dağılım TEFAS'ın son açıkladığı portföy raporuna dayanır.");
+    if (f.price && (f.r1m != null || f.r3m != null || f.r6m != null)) parts.push("Kısa vadede fon son 1 ayda <strong>" + fmtPct(f.r1m) + "</strong>" + (f.r3m != null ? ", 3 ayda " + fmtPct(f.r3m) : "") + (f.r6m != null ? ", 6 ayda " + fmtPct(f.r6m) : "") + " getiri üretti. Dönem getirileri birim pay fiyatındaki değişimi gösterir; temettü ve masraflar fiyata yansımış hâldedir.");
+    if (f.size || f.investors) parts.push("Fonun büyüklüğü <strong>" + (f.size ? fmtCompact(f.size) + " ₺" : "-") + "</strong>" + (f.investors ? ", yatırımcı sayısı <strong>" + nf(0, 0).format(f.investors) + "</strong>" : "") + (f.catCount ? "; \"" + esc(f.category || "") + "\" kategorisinde toplam " + f.catCount + " fon bulunuyor." : "."));
+    parts.push(esc(code) + " fonunu <strong>InvestAZ</strong> hesabınızla e-şube veya mobil uygulamadan alıp satabilirsiniz; TEFAS fonlarında alım emirleri fon izahnamesindeki valör kurallarına göre gerçekleşir. Bu sayfadaki fiyat ve getiriler TEFAS'tan her iş günü otomatik güncellenir ve yatırım tavsiyesi değildir.");
     return parts.map(function (p) { return "<p>" + p + "</p>"; }).join("");
   }
   function faqFor(f) {

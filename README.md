@@ -2,4 +2,4 @@
 
 TEFAS kaynaklı, kamuya açık fon fiyat/getiri verisi (InvestAZ fon fiyatları sayfaları için). Otomatik üretilir; elle düzenlemeyin.
 
-Son üretim: 2026-09-15T11:06:06.480Z
+Son üretim: 2026-09-15T14:27:05.631Z
