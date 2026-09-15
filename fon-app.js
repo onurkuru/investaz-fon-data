@@ -67,7 +67,9 @@
 #" + ROOT_ID + " .iaf-faq summary{cursor:pointer;font-weight:700;list-style:none}#" + ROOT_ID + " .iaf-faq summary::-webkit-details-marker{display:none}\
 #" + ROOT_ID + " .iaf-faq details{border-top:1px solid rgba(219,221,234,.6);padding:10px 0}#" + ROOT_ID + " .iaf-faq details:first-child{border-top:0}\
 #" + ROOT_ID + " .iaf-ring-fill{transition:stroke-dashoffset .8s ease-out}\
-@media (max-width:767px){#" + ROOT_ID + " #iaf-fund-table th:nth-child(2),#" + ROOT_ID + " #iaf-fund-table td:nth-child(2),#" + ROOT_ID + " #iaf-fund-table th:nth-child(5),#" + ROOT_ID + " #iaf-fund-table td:nth-child(5),#" + ROOT_ID + " #iaf-fund-table th:nth-child(6),#" + ROOT_ID + " #iaf-fund-table td:nth-child(6),#" + ROOT_ID + " #iaf-fund-table th:nth-child(8),#" + ROOT_ID + " #iaf-fund-table td:nth-child(8){display:none}}\
+@media (max-width:767px){#" + ROOT_ID + " #iaf-fund-table th:nth-child(2),#" + ROOT_ID + " #iaf-fund-table td:nth-child(2),#" + ROOT_ID + " #iaf-fund-table th:nth-child(5),#" + ROOT_ID + " #iaf-fund-table td:nth-child(5),#" + ROOT_ID + " #iaf-fund-table th:nth-child(6),#" + ROOT_ID + " #iaf-fund-table td:nth-child(6),#" + ROOT_ID + " #iaf-fund-table th:nth-child(8),#" + ROOT_ID + " #iaf-fund-table td:nth-child(8){display:none}\
+#" + ROOT_ID + " #iaf-fund-table th,#" + ROOT_ID + " #iaf-fund-table td{padding-left:6px;padding-right:6px;font-size:12px}#" + ROOT_ID + " #iaf-fund-table th{letter-spacing:.02em}#" + ROOT_ID + " #iaf-fund-table th:first-child{min-width:0}#" + ROOT_ID + " #iaf-fund-table td:first-child div{max-width:30vw}}\
+@media (max-width:479px){#" + ROOT_ID + " #iaf-fund-table th:nth-child(9),#" + ROOT_ID + " #iaf-fund-table td:nth-child(9){display:none}}\
 #" + ROOT_ID + " #iaf-fund-table tbody tr:nth-child(even){background:rgba(0,140,152,.02)}\
 ";
   var styleEl = document.createElement("style"); styleEl.id = "iaf-style"; styleEl.textContent = css; document.head.appendChild(styleEl);
@@ -198,6 +200,7 @@
     getJSON("/fund/" + code).then(renderDetail).catch(function (e) {
       console.warn("[iaf]", e);
       setText("iaf-det-name", "Bu fon için veri bulunamadı.");
+      setHTML("iaf-summary-text", '<p>' + code + ' koduyla TEFAS\'ta işlem gören bir fon bulunamadı. Kodu kontrol edin veya <a class="text-iaz-cyan font-semibold" href="' + HUB + '">fon listesinden</a> seçin.</p>');
       setMeta("robots", "noindex, follow");
     });
   }
