@@ -278,7 +278,7 @@
     setCanonical(canon);
     if (!f.price) setMeta("robots", "noindex, follow");
     setJsonLd("iaf-ld-breadcrumb", { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Ana Sayfa", item: SITE + "/" }, { "@type": "ListItem", position: 2, name: "Fon Fiyatları", item: SITE + HUB }, { "@type": "ListItem", position: 3, name: code + " " + name, item: canon }] });
-    setJsonLd("iaf-ld-product", { "@context": "https://schema.org", "@type": "InvestmentFund", name: name, alternateName: code, identifier: f.isin || code, category: f.category || tl, url: canon, provider: { "@type": "Organization", name: f.company || "" }, offers: { "@type": "Offer", price: f.price || undefined, priceCurrency: "TRY", availability: "https://schema.org/InStock", seller: { "@type": "Organization", name: "InvestAZ Yatırım Menkul Değerler A.Ş.", url: SITE } }, annualPercentageRate: f.r1y != null ? { "@type": "QuantitativeValue", value: Math.round(f.r1y * 100) / 100, unitText: "PERCENT" } : undefined });
+    setJsonLd("iaf-ld-product", { "@context": "https://schema.org", "@type": "InvestmentFund", name: name, alternateName: code, identifier: f.isin || code, category: f.category || tl, url: canon, provider: { "@type": "Organization", name: f.company || "" }, annualPercentageRate: f.r1y != null ? { "@type": "QuantitativeValue", value: Math.round(f.r1y * 100) / 100, unitText: "PERCENT" } : undefined });
     setJsonLd("iaf-ld-faq", { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faq.map(function (x) { return { "@type": "Question", name: x.q, acceptedAnswer: { "@type": "Answer", text: x.a } }; }) });
     enrichSeo(f, code, name, title, desc, canon);
     observeSections();
@@ -305,7 +305,7 @@
     setMeta("og:image", img, "property"); setMeta("og:image:width", "1200", "property"); setMeta("og:image:height", "630", "property"); setMeta("og:image:alt", code + " fon fiyatı", "property");
     setJsonLd("iaf-ld-webpage", { "@context": "https://schema.org", "@type": "WebPage", "@id": canon + "#webpage", url: canon, name: title, description: desc, inLanguage: "tr-TR", dateModified: f.date || undefined, isPartOf: { "@type": "WebSite", name: "InvestAZ", url: SITE }, primaryImageOfPage: imgObj, about: { "@type": "InvestmentFund", name: name, alternateName: code }, breadcrumb: { "@id": canon + "#breadcrumb" } });
     setJsonLd("iaf-ld-article", { "@context": "https://schema.org", "@type": "Article", headline: code + " Fon Fiyatı ve Getirisi — " + name, description: desc, url: canon, image: [img], mainEntityOfPage: { "@id": canon + "#webpage" }, articleSection: cat, inLanguage: "tr-TR", datePublished: f.date || undefined, dateModified: f.date || undefined, author: org, publisher: org });
-    if (f.price) setJsonLd("iaf-ld-offer", { "@context": "https://schema.org", "@type": "Product", name: name, sku: code, category: cat, image: [img], brand: f.company ? { "@type": "Brand", name: f.company } : undefined, description: desc, url: canon, offers: { "@type": "Offer", url: canon, price: Number(f.price.toFixed(6)), priceCurrency: "TRY", availability: "https://schema.org/InStock", priceValidUntil: f.date || undefined, seller: org } });
+    var oldOffer = $("iaf-ld-offer"); if (oldOffer) oldOffer.remove(); // satış yok: Product/Offer şeması kullanılmaz
     else { var o = $("iaf-ld-offer"); if (o) o.remove(); }
   }
 
@@ -328,14 +328,14 @@
     if (al.length) parts.push("Varlık dağılımında en büyük kalem <strong>" + esc(al[0].label) + " (%" + fmtNum(al[0].pct, 1) + ")</strong>" + (al[1] ? ", ardından " + esc(al[1].label) + " (%" + fmtNum(al[1].pct, 1) + ")" : "") + (al[2] ? " ve " + esc(al[2].label) + " (%" + fmtNum(al[2].pct, 1) + ")" : "") + " geliyor; dağılım TEFAS'ın son açıkladığı portföy raporuna dayanır.");
     if (f.price && (f.r1m != null || f.r3m != null || f.r6m != null)) parts.push("Kısa vadede fon son 1 ayda <strong>" + fmtPct(f.r1m) + "</strong>" + (f.r3m != null ? ", 3 ayda " + fmtPct(f.r3m) : "") + (f.r6m != null ? ", 6 ayda " + fmtPct(f.r6m) : "") + " getiri üretti. Dönem getirileri birim pay fiyatındaki değişimi gösterir; temettü ve masraflar fiyata yansımış hâldedir.");
     if (f.size || f.investors) parts.push("Fonun büyüklüğü <strong>" + (f.size ? fmtCompact(f.size) + " ₺" : "-") + "</strong>" + (f.investors ? ", yatırımcı sayısı <strong>" + nf(0, 0).format(f.investors) + "</strong>" : "") + (f.catCount ? "; \"" + esc(f.category || "") + "\" kategorisinde toplam " + f.catCount + " fon bulunuyor." : "."));
-    parts.push(esc(code) + " fonunu <strong>InvestAZ</strong> hesabınızla e-şube veya mobil uygulamadan alıp satabilirsiniz; TEFAS fonlarında alım emirleri fon izahnamesindeki valör kurallarına göre gerçekleşir. Bu sayfadaki fiyat ve getiriler TEFAS'tan her iş günü otomatik güncellenir ve yatırım tavsiyesi değildir.");
+    parts.push("Bu sayfadaki fiyat ve getiriler TEFAS'tan her iş günü otomatik güncellenir; fonun alım-satım talimatları izahnamesindeki valör kurallarına göre gerçekleşir. Bilgiler yatırım tavsiyesi değildir.");
     return parts.map(function (p) { return "<p>" + p + "</p>"; }).join("");
   }
   function faqFor(f) {
     var code = f.code, r = f.risk || 0, out = [];
     out.push({ q: code + " fonu ne kadar kazandırdı?", a: code + " fonu yılbaşından bugüne " + fmtPct(f.ytd) + ", son 1 ayda " + fmtPct(f.r1m) + ", son 1 yılda " + fmtPct(f.r1y) + " getiri sağladı. Geçmiş getiri gelecekteki getirinin garantisi değildir." });
     out.push({ q: code + " fonunun güncel fiyatı nedir?", a: "Son açıklanan birim pay fiyatı " + (f.price ? fmtPrice(f.price) + " TL" : "henüz yayımlanmadı") + (f.date ? " (" + fmtDate(f.date) + ")" : "") + ". TEFAS fon fiyatları her iş günü bir kez açıklanır." });
-    out.push({ q: code + " fonu nasıl alınır?", a: code + " fonu TEFAS'ta işlem gördüğü için InvestAZ hesabınızla e-şube veya mobil uygulama üzerinden alınıp satılabilir. Alım ve satım talimatları fonun izahnamesindeki valör süresine göre gerçekleşir." });
+    out.push({ q: code + " fonunun fiyatı ne zaman güncellenir?", a: code + " fonunun birim pay fiyatı TEFAS tarafından her iş günü bir kez açıklanır; bu sayfa fiyatı otomatik alır. Alım ve satım talimatları fonun izahnamesindeki valör süresine (genellikle T+1 veya T+2) göre gerçekleşir." });
     if (r) out.push({ q: code + " fonu riskli mi?", a: code + " fonunun SPK risk değeri " + r + "/7'dir; bu " + riskText(r).toLocaleLowerCase("tr-TR") + " risk sınıfına karşılık gelir. Risk değeri fonun geçmiş fiyat dalgalanmasına göre hesaplanır." });
     if (f.category) out.push({ q: code + " hangi kategoride?", a: code + ", TEFAS sınıflandırmasında \"" + f.category + "\" kategorisindedir" + (f.catCount ? "; bu kategoride " + f.catCount + " fon bulunur." : ".") });
     return out;
